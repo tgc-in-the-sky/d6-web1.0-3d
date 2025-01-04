@@ -1,4 +1,3 @@
-// src/components/Scene.jsx
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useGLTF, Environment } from '@react-three/drei'
 import { Suspense, useEffect, useRef, useState, useCallback } from 'react'
@@ -6,8 +5,12 @@ import * as THREE from 'three'
 
 function Model() {
   const { scene } = useGLTF('/homescreen-base-scene.glb')
+  // A ref to access the model's rotation in useFrame
+  const modelRef = useRef()
 
   useEffect(() => {
+    if (!scene) return
+
     // Center the model horizontally and place on the ground at y=0
     const box = new THREE.Box3().setFromObject(scene)
     const center = box.getCenter(new THREE.Vector3())
@@ -26,7 +29,15 @@ function Model() {
     })
   }, [scene])
 
-  return <primitive object={scene} />
+  // Slowly rotate the model around the z-axis
+  useFrame((_, delta) => {
+    if (modelRef.current) {
+      // `delta` is the time since last frame, so rotation speed is framerate-independent
+      modelRef.current.rotation.y += 0.05 * delta
+    }
+  })
+
+  return <primitive ref={modelRef} object={scene} />
 }
 
 function GroundPlane() {
@@ -38,11 +49,6 @@ function GroundPlane() {
   )
 }
 
-/**
- * CameraRig
- * - Listens for mouse movement to rotate camera.
- * - Moves camera up on scroll-down, returns to original on scroll-up.
- */
 function CameraRig() {
   const { camera, size } = useThree()
 
@@ -53,7 +59,7 @@ function CameraRig() {
   // Store the camera’s "target" position for smooth transitions
   const targetCameraPos = useRef(camera.position.clone())
 
-  // (Optional) Keep the original camera position around if you like:
+  // (Optional) Keep the original camera position around if you like
   const originalPosition = useRef(new THREE.Vector3(7, 0.75, 1))
 
   // Handle pointer movement (rotate)
@@ -72,7 +78,7 @@ function CameraRig() {
     if (event.deltaY > 0) {
       // Scroll down => move camera up a bit
       targetCameraPos.current = targetCameraPos.current.clone()
-      targetCameraPos.current.y += 0.1 // smaller step for slower upward movement
+      targetCameraPos.current.y += 0.1
     } else if (event.deltaY < 0) {
       // Scroll up => return to original camera position
       targetCameraPos.current = originalPosition.current.clone()
@@ -92,11 +98,10 @@ function CameraRig() {
   // On every frame, rotate & smoothly move the camera toward target
   useFrame(() => {
     // 1. Rotate camera based on mouse
-    camera.rotation.y = initialRotation.current.y - mouse.x * 0.035
-    camera.rotation.x = initialRotation.current.x - mouse.y * 0.025
+    camera.rotation.y = initialRotation.current.y - mouse.x * 0.0
+    camera.rotation.x = initialRotation.current.x - mouse.y * 0.01
 
     // 2. Smoothly move camera toward target
-    //    Lower lerp factor => slower, smoother movement
     camera.position.lerp(targetCameraPos.current, 0.02)
   })
 
@@ -117,7 +122,6 @@ export default function Scene() {
     >
       <Canvas
         shadows={{ type: THREE.PCFSoftShadowMap }}
-        // Keep your original camera position & fov
         camera={{ position: [7, 0.75, 1], fov: 50 }}
       >
         <fog attach="fog" args={['#E6EFF4', 5, 20]} />
